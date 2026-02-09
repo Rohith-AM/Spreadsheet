@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Project Spreadsheet Tool</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --border: #e2e8f0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 40px; }
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        button:hover { background: #1d4ed8; }
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        table { border-collapse: collapse; width: 100%; }
+        th { background: #f1f5f9; border: 1px solid var(--border); padding: 12px; color: #475569; }
+        td { border: 1px solid var(--border); padding: 0; }
+        input { width: 100%; border: none; padding: 12px; outline: none; font-size: 14px; }
+        input:focus { background: #eff6ff; box-shadow: inset 0 0 0 2px var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h2 style="margin: 0; flex-grow: 1;">Project Data Tracker</h2>
+        <button onclick="downloadCSV()">Export to Excel (CSV)</button>
+    </div>
+
+    <div class="table-container">
+        <table id="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Item Name</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        const rowCount = 15;
+        const tbody = document.getElementById('table-body');
+
+        // Generate Rows
+        for (let i = 1; i <= rowCount; i++) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align:center; background:#f1f5f9; font-weight:bold;">${i}</td>
+                <td><input type="text" class="cell"></td>
+                <td><input type="text" class="cell"></td>
+                <td><input type="text" class="cell"></td>
+                <td><input type="text" class="cell"></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        // CSV Export Function
+        function downloadCSV() {
+            let csv = [];
+            const rows = document.querySelectorAll("tr");
+            
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll("td, th");
+                for (let j = 0; j < cols.length; j++) {
+                    const input = cols[j].querySelector('input');
+                    row.push(input ? `"${input.value}"` : `"${cols[j].innerText}"`);
+                }
+                csv.push(row.join(","));
+            }
+
+            const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+            const downloadLink = document.createElement("a");
+            downloadLink.download = "project_data.csv";
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.click();
+        }
+    </script>
+</body>
+</html>
