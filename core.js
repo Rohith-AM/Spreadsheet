@@ -112,32 +112,47 @@ const Core = {
         }
     },
 
+    // --- REPLACE THIS SECTION IN YOUR core.js ---
+
     evaluateRangeFunction: function(expr) {
-        // Extract the function name and the range
-        // Matches: FUNCTION_NAME(START:END) -> SUM(A1:A5)
-        const match = expr.match(/([A-Z]+)\(([A-Z]+[0-9]+):([A-Z]+[0-9]+)\)/);
+        // Updated Regex to capture Function Name and Arguments
+        // Supports: SUM(A1:A5), MAX(A1, B1), POWER(A1, 2)
+        const match = expr.match(/([A-Z0-9]+)\((.*)\)/);
         
         if (!match) return "#FORMULA_ERR";
 
-        const func = match[1];      // SUM
-        const startCell = match[2]; // A1
-        const endCell = match[3];   // A5
+        const funcName = match[1];     // e.g. "SUM" or "POWER"
+        const innerContent = match[2]; // e.g. "A1:A5" or "A1, 2"
 
-        const values = this.getRangeValues(startCell, endCell);
+        // 1. Parse Arguments
+        // We need to split by comma, but handle ranges like A1:A5
+        const rawArgs = innerContent.split(",");
+        const computedArgs = [];
 
-        if (func === "SUM") return values.reduce((a, b) => a + b, 0);
-        
-        if (func === "AVG") {
-            const sum = values.reduce((a, b) => a + b, 0);
-            return values.length > 0 ? sum / values.length : 0;
+        rawArgs.forEach(arg => {
+            arg = arg.trim();
+            if (arg.includes(":")) {
+                // It's a range (A1:A5) -> Get all values
+                const [start, end] = arg.split(":");
+                const values = this.getRangeValues(start, end);
+                computedArgs.push(values);
+            } else if (this.state[arg]) {
+                // It's a Cell Reference (A1) -> Get value
+                let val = this.state[arg].value;
+                computedArgs.push(isNaN(Number(val)) ? val : Number(val));
+            } else {
+                // It's a raw number or string (10, "Text")
+                computedArgs.push(isNaN(Number(arg)) ? arg.replace(/"/g, "") : Number(arg));
+            }
+        });
+
+        // 2. Execute using the new Library
+        if (FormulaLib && FormulaLib.registry[funcName]) {
+            return FormulaLib.execute(funcName, computedArgs);
         }
 
-        if (func === "MAX") return Math.max(...values);
-        if (func === "MIN") return Math.min(...values);
-
         return "#UNKNOWN_FUNC";
-    },
-
+    }
     // -------------------------------------------------------------------------
     // 5. HELPER UTILITIES
     // -------------------------------------------------------------------------
