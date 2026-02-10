@@ -6,7 +6,6 @@
     <title>Nexora Spreadsheet Platform</title>
     
     <link rel="stylesheet" href="style.css">
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -17,31 +16,26 @@
         
         <div id="toolbar">
             <div class="group">
-                <button onclick="StorageEngine.saveToLocal()" title="Save (Ctrl+S)">💾</button>
-                <button onclick="StorageEngine.clearData()" title="Reset Sheet">🗑️</button>
+                <button onclick="StorageEngine.saveToLocal()" title="Save">💾</button>
+                <button onclick="StorageEngine.clearData()" title="Reset">🗑️</button>
             </div>
-
             <div class="group">
-                <button onclick="StorageEngine.downloadCSV()" title="Export CSV">.CSV</button>
-                <button onclick="StorageEngine.downloadPDF()" title="Export PDF" style="color:#d93025">.PDF</button>
-                <button onclick="StorageEngine.downloadJSON()" title="Backup">.JSON</button>
+                <button onclick="StorageEngine.downloadCSV()">.CSV</button>
+                <button onclick="StorageEngine.downloadPDF()" style="color:#d93025">.PDF</button>
+                <button onclick="StorageEngine.downloadJSON()">.JSON</button>
             </div>
-
             <div class="group">
-                <button onclick="Formatting.toggleBold()" title="Bold"><b>B</b></button>
-                <button onclick="Formatting.toggleItalic()" title="Italic"><i>I</i></button>
+                <button onclick="Formatting.toggleBold()"><b>B</b></button>
+                <button onclick="Formatting.toggleItalic()"><i>I</i></button>
                 <button onclick="Formatting.applyStyle('textAlign', 'left')">⇤</button>
                 <button onclick="Formatting.applyStyle('textAlign', 'center')">⇹</button>
                 <button onclick="Formatting.applyStyle('textAlign', 'right')">⇥</button>
             </div>
-
             <div class="group">
                 <button onclick="Formatting.applyStyle('color', 'red')" style="color:red">A</button>
-                <button onclick="Formatting.applyStyle('color', 'blue')" style="color:blue">A</button>
                 <button onclick="Formatting.applyStyle('backgroundColor', 'yellow')" style="background:yellow; padding:0 8px;">&nbsp;</button>
-                <button onclick="Formatting.applyStyle('backgroundColor', 'transparent')" title="Clear Fill">🚫</button>
+                <button onclick="Formatting.applyStyle('backgroundColor', 'transparent')">🚫</button>
             </div>
-
             <div class="group">
                 <button onclick="GraphTool.createGraph()">📊 Graph</button>
             </div>
@@ -53,8 +47,12 @@
         </div>
 
         <div id="grid-container">
-            <div id="header-row-container"></div> 
-            
+            <div id="header-row"></div>
+
+            <div id="header-col"></div>
+
+            <div id="corner-block" style="position:fixed; top:108px; left:0; width:40px; height:30px; background:#f8f9fa; z-index:50; border-right:1px solid #ccc; border-bottom:1px solid #ccc;"></div>
+
             <div id="scroll-spacer"></div>
             
             <div id="cells-layer"></div>
@@ -70,29 +68,21 @@
 
     <script src="core.js"></script>
     <script src="formula_library.js"></script>
-
     <script src="storage_export.js"></script>
     <script src="formatting.js"></script>
     <script src="graphs.js"></script>
-
-    <script src="grid_renderer.js"></script>
-    <script src="events.js"></script>
+    <script src="grid_renderer.js"></script> <script src="events.js"></script>
     <script src="context_menu.js"></script>
 
     <script>
         window.onload = function() {
-            console.log("🚀 Nexora Platform Launching...");
-            
-            // Initialize in specific order
+            console.log("🚀 Nexora Launching...");
             Core.init();
             StorageEngine.init();
             Renderer.init();
             Events.init();
             ContextMenu.init();
-
-            console.log("✅ System Online.");
         };
     </script>
-
 </body>
 </html>
