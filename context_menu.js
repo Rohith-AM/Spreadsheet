@@ -31,6 +31,9 @@ const ContextMenu = {
     },
 
     createMenuDOM: function() {
+        // Prevent duplicate menu creation
+        if (document.getElementById('nexora-context-menu')) return;
+
         const menu = document.createElement('div');
         menu.id = 'nexora-context-menu';
         menu.style.position = 'absolute';
@@ -153,9 +156,4 @@ const ContextMenu = {
         }
     }
 };
-
-// Integration Hook
-if (typeof window !== 'undefined') {
-    // Delay slightly to ensure DOM is ready
-    setTimeout(() => ContextMenu.init(), 500);
-}
+// Removed the double-initialization setTimeout here!
