@@ -1,69 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexora Modular Spreadsheet</title>
+    <title>Nexora Spreadsheet Platform</title>
+    
     <link rel="stylesheet" href="style.css">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
     <div id="app-container">
+        
         <div id="toolbar">
             <div class="group">
-                <button onclick="Tools.toggleBold()"><b>B</b></button>
-                <button onclick="Tools.toggleItalic()"><i>I</i></button>
-                <button onclick="Tools.downloadCSV()">Download</button>
+                <button onclick="StorageEngine.saveToLocal()" title="Save (Ctrl+S)">💾</button>
+                <button onclick="StorageEngine.clearData()" title="Reset Sheet">🗑️</button>
             </div>
+
             <div class="group">
-                <button onclick="GraphTool.createGraph()">Insert Graph</button>
+                <button onclick="StorageEngine.downloadCSV()" title="Export CSV">.CSV</button>
+                <button onclick="StorageEngine.downloadPDF()" title="Export PDF" style="color:#d93025">.PDF</button>
+                <button onclick="StorageEngine.downloadJSON()" title="Backup">.JSON</button>
             </div>
-            <div class="formula-group">
-                <span>fx:</span>
-                <input type="text" id="formula-input" placeholder="Enter formula...">
+
+            <div class="group">
+                <button onclick="Formatting.toggleBold()" title="Bold"><b>B</b></button>
+                <button onclick="Formatting.toggleItalic()" title="Italic"><i>I</i></button>
+                <button onclick="Formatting.applyStyle('textAlign', 'left')">⇤</button>
+                <button onclick="Formatting.applyStyle('textAlign', 'center')">⇹</button>
+                <button onclick="Formatting.applyStyle('textAlign', 'right')">⇥</button>
+            </div>
+
+            <div class="group">
+                <button onclick="Formatting.applyStyle('color', 'red')" style="color:red">A</button>
+                <button onclick="Formatting.applyStyle('color', 'blue')" style="color:blue">A</button>
+                <button onclick="Formatting.applyStyle('backgroundColor', 'yellow')" style="background:yellow; padding:0 8px;">&nbsp;</button>
+                <button onclick="Formatting.applyStyle('backgroundColor', 'transparent')" title="Clear Fill">🚫</button>
+            </div>
+
+            <div class="group">
+                <button onclick="GraphTool.createGraph()">📊 Graph</button>
             </div>
         </div>
 
-        <div id="grid-container" onscroll="VirtualScroll.onScroll(event)">
+        <div class="formula-wrapper">
+            <div class="fx-icon">fx</div>
+            <input type="text" id="formula-input" placeholder="Type a value or formula (e.g. =SUM(A1:A5))">
+        </div>
+
+        <div id="grid-container">
+            <div id="header-row-container"></div> 
+            
             <div id="scroll-spacer"></div>
+            
             <div id="cells-layer"></div>
-        </div>
-
-        <div id="graph-modal" class="hidden">
-            <div class="modal-content">
-                <span class="close" onclick="GraphTool.closeGraph()">&times;</span>
-                <canvas id="chartCanvas"></canvas>
-            </div>
         </div>
     </div>
 
-    <script>
-        // Global State accessible by all files
-        const State = {
-            data: {},     // Stores values: { "A1": "10", "B1": "=A1*2" }
-            styles: {},   // Stores styles: { "A1": "bold" }
-            config: {
-                rows: 1000,
-                cols: 26, // A-Z
-                rowHeight: 30,
-                colWidth: 100
-            }
-        };
-    </script>
+    <div id="graph-modal" class="hidden">
+        <div class="modal-content">
+            <span class="close" onclick="GraphTool.closeGraph()">&times;</span>
+            <canvas id="chartCanvas"></canvas>
+        </div>
+    </div>
 
-    <script src="formulas.js"></script>
+    <script src="core.js"></script>
+    <script src="formula_library.js"></script>
+
+    <script src="storage_export.js"></script>
+    <script src="formatting.js"></script>
     <script src="graphs.js"></script>
-    <script src="tools.js"></script>
-    <script src="virtual_scroll.js"></script>
+
+    <script src="grid_renderer.js"></script>
+    <script src="events.js"></script>
+    <script src="context_menu.js"></script>
 
     <script>
-        // Start the engine once DOM is ready
-        window.onload = () => {
-            VirtualScroll.init();
-            console.log("Nexora Spreadsheet Loaded.");
+        window.onload = function() {
+            console.log("🚀 Nexora Platform Launching...");
+            
+            // Initialize in specific order
+            Core.init();
+            StorageEngine.init();
+            Renderer.init();
+            Events.init();
+            ContextMenu.init();
+
+            console.log("✅ System Online.");
         };
     </script>
 
