@@ -2,81 +2,331 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Project Spreadsheet Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora Mini-Sheet</title>
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --border: #e2e8f0; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 40px; }
-        .controls { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
-        button { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
-        button:hover { background: #1d4ed8; }
-        .table-container { background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
-        table { border-collapse: collapse; width: 100%; }
-        th { background: #f1f5f9; border: 1px solid var(--border); padding: 12px; color: #475569; }
-        td { border: 1px solid var(--border); padding: 0; }
-        input { width: 100%; border: none; padding: 12px; outline: none; font-size: 14px; }
-        input:focus { background: #eff6ff; box-shadow: inset 0 0 0 2px var(--primary); }
+        :root {
+            --border-color: #e2e3e3;
+            --header-bg: #f8f9fa;
+            --select-color: #e8f0fe;
+            --primary-color: #1a73e8;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        #toolbar {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+            background: white;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 5px 10px;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover { background: #f1f3f4; }
+        button.active { background: #e8f0fe; color: var(--primary-color); border-color: var(--primary-color); }
+
+        #formula-bar {
+            flex-grow: 1;
+            padding: 5px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        /* Spreadsheet Grid */
+        #spreadsheet-container {
+            flex-grow: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        table {
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            min-width: 80px;
+            height: 25px;
+            padding: 0 4px;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        /* Headers */
+        th {
+            background: var(--header-bg);
+            color: #5f6368;
+            font-weight: bold;
+            text-align: center;
+            position: sticky;
+            z-index: 10;
+        }
+        
+        thead th { top: 0; z-index: 20; } /* Column Headers */
+        tbody th { left: 0; z-index: 15; } /* Row Headers */
+        
+        /* The top-left corner cell */
+        thead th:first-child {
+            z-index: 30;
+            left: 0;
+            top: 0;
+        }
+
+        /* Cell Styling */
+        td {
+            outline: none;
+            cursor: cell;
+        }
+
+        td:focus {
+            border: 2px solid var(--primary-color);
+            z-index: 5;
+        }
+
+        .selected { background-color: var(--select-color); }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <h2 style="margin: 0; flex-grow: 1;">Project Data Tracker</h2>
-        <button onclick="downloadCSV()">Export to Excel (CSV)</button>
+    <div id="toolbar">
+        <button onclick="formatCell('bold')"><b>B</b></button>
+        <button onclick="formatCell('italic')"><i>I</i></button>
+        <span>Fx:</span>
+        <input type="text" id="formula-bar" placeholder="Enter value or formula (e.g., =SUM(A1:A3))">
+        <button onclick="downloadCSV()">Download CSV</button>
     </div>
 
-    <div class="table-container">
-        <table id="data-table">
+    <div id="spreadsheet-container">
+        <table id="sheet">
             <thead>
-                <tr>
-                    <th style="width: 50px;">#</th>
-                    <th>Item Name</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                    <th>Notes</th>
-                </tr>
+                <tr id="header-row">
+                    <th></th> </tr>
             </thead>
-            <tbody id="table-body">
-                </tbody>
+            <tbody id="sheet-body"></tbody>
         </table>
     </div>
 
-    <script>
-        const rowCount = 15;
-        const tbody = document.getElementById('table-body');
+<script>
+    const ROWS = 20;
+    const COLS = 10; // A to J
+    let activeCell = null;
+    const state = {}; // Store raw data (formulas) here
 
-        // Generate Rows
-        for (let i = 1; i <= rowCount; i++) {
+    const sheetBody = document.getElementById('sheet-body');
+    const headerRow = document.getElementById('header-row');
+    const formulaBar = document.getElementById('formula-bar');
+
+    // --- Initialization ---
+    function init() {
+        // Create Headers (A, B, C...)
+        for (let i = 0; i < COLS; i++) {
+            const th = document.createElement('th');
+            th.innerText = String.fromCharCode(65 + i);
+            headerRow.appendChild(th);
+        }
+
+        // Create Rows
+        for (let r = 1; r <= ROWS; r++) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="text-align:center; background:#f1f5f9; font-weight:bold;">${i}</td>
-                <td><input type="text" class="cell"></td>
-                <td><input type="text" class="cell"></td>
-                <td><input type="text" class="cell"></td>
-                <td><input type="text" class="cell"></td>
-            `;
-            tbody.appendChild(tr);
-        }
-
-        // CSV Export Function
-        function downloadCSV() {
-            let csv = [];
-            const rows = document.querySelectorAll("tr");
             
-            for (let i = 0; i < rows.length; i++) {
-                let row = [], cols = rows[i].querySelectorAll("td, th");
-                for (let j = 0; j < cols.length; j++) {
-                    const input = cols[j].querySelector('input');
-                    row.push(input ? `"${input.value}"` : `"${cols[j].innerText}"`);
-                }
-                csv.push(row.join(","));
-            }
+            // Row Number Header
+            const rowHead = document.createElement('th');
+            rowHead.innerText = r;
+            tr.appendChild(rowHead);
 
-            const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
-            const downloadLink = document.createElement("a");
-            downloadLink.download = "project_data.csv";
-            downloadLink.href = window.URL.createObjectURL(csvFile);
-            downloadLink.click();
+            // Cells
+            for (let c = 0; c < COLS; c++) {
+                const td = document.createElement('td');
+                td.contentEditable = true;
+                const cellId = `${String.fromCharCode(65 + c)}${r}`;
+                td.dataset.id = cellId;
+                
+                // Event Listeners
+                td.addEventListener('focus', onFocus);
+                td.addEventListener('blur', onBlur);
+                td.addEventListener('keydown', onKeydown);
+                
+                tr.appendChild(td);
+            }
+            sheetBody.appendChild(tr);
         }
-    </script>
+    }
+
+    // --- Event Handling ---
+    function onFocus(e) {
+        activeCell = e.target;
+        const id = activeCell.dataset.id;
+        // Show raw formula in bar if exists, else show text
+        formulaBar.value = state[id] || activeCell.innerText;
+        
+        // Highlight headers (Visual polish)
+        highlightHeaders(id);
+    }
+
+    function onBlur(e) {
+        const id = e.target.dataset.id;
+        const content = e.target.innerText;
+        
+        // If it looks like a formula or we have state, save it
+        if (state[id] && state[id].startsWith('=')) {
+            // Re-evaluate to ensure display is correct
+            e.target.innerText = computeFormula(state[id]);
+        } else {
+            // Update state with plain text
+            state[id] = content;
+        }
+    }
+
+    // Handle Enter key to move down
+    function onKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const colChar = activeCell.dataset.id.charAt(0);
+            const rowNum = parseInt(activeCell.dataset.id.slice(1));
+            const nextId = `${colChar}${rowNum + 1}`;
+            const nextCell = document.querySelector(`td[data-id="${nextId}"]`);
+            if (nextCell) nextCell.focus();
+        }
+    }
+
+    // Formula Bar Input
+    formulaBar.addEventListener('keyup', (e) => {
+        if (!activeCell) return;
+        const val = e.target.value;
+        state[activeCell.dataset.id] = val; // Save raw input to state
+
+        if (e.key === 'Enter') {
+            activeCell.innerText = computeFormula(val);
+            activeCell.blur();
+        } else {
+            // Live update (optional, but nice)
+            // activeCell.innerText = val; 
+        }
+    });
+
+    // --- Formula Logic ---
+    function computeFormula(value) {
+        if (!value.startsWith('=')) return value;
+
+        const formula = value.substring(1).toUpperCase();
+        
+        try {
+            // 1. Handle SUM(A1:A3)
+            if (formula.startsWith('SUM(')) {
+                const range = parseRange(formula);
+                return range.reduce((a, b) => a + (parseFloat(getCellValue(b)) || 0), 0);
+            }
+            // 2. Handle AVG(A1:A3)
+            if (formula.startsWith('AVG(')) {
+                const range = parseRange(formula);
+                const sum = range.reduce((a, b) => a + (parseFloat(getCellValue(b)) || 0), 0);
+                return sum / range.length;
+            }
+            // 3. Simple Math (A1 + B2) - Basic implementation
+            // Regex to replace Cell IDs with their values
+            const parsedMath = formula.replace(/[A-J][0-9]+/g, (match) => {
+                const val = getCellValue(match);
+                return isNaN(val) ? 0 : val;
+            });
+            return eval(parsedMath); // Warning: eval is used for simplicity in this demo
+
+        } catch (err) {
+            return "#ERROR";
+        }
+    }
+
+    function parseRange(formula) {
+        // Extract content between parenthesis: SUM(A1:A5) -> A1:A5
+        const content = formula.match(/\((.*?)\)/)[1];
+        const [start, end] = content.split(':');
+        
+        const startCol = start.charCodeAt(0);
+        const startRow = parseInt(start.slice(1));
+        const endCol = end.charCodeAt(0);
+        const endRow = parseInt(end.slice(1));
+
+        const cells = [];
+        for (let c = startCol; c <= endCol; c++) {
+            for (let r = startRow; r <= endRow; r++) {
+                cells.push(`${String.fromCharCode(c)}${r}`);
+            }
+        }
+        return cells;
+    }
+
+    function getCellValue(cellId) {
+        const cell = document.querySelector(`td[data-id="${cellId}"]`);
+        if (!cell) return 0;
+        // Return raw text if not a formula, or computed value
+        return cell.innerText;
+    }
+
+    // --- Utilities ---
+    function formatCell(command) {
+        if (!activeCell) return;
+        document.execCommand(command, false, null);
+        activeCell.focus();
+    }
+
+    function highlightHeaders(cellId) {
+        // Reset old headers
+        document.querySelectorAll('th').forEach(th => th.style.color = '');
+        
+        const colChar = cellId.charAt(0);
+        const rowNum = cellId.slice(1);
+        
+        // Find headers (approximation for demo)
+        const colHeader = Array.from(document.querySelectorAll('thead th')).find(th => th.innerText === colChar);
+        const rowHeader = Array.from(document.querySelectorAll('tbody th')).find(th => th.innerText === rowNum);
+        
+        if (colHeader) colHeader.style.color = '#1a73e8';
+        if (rowHeader) rowHeader.style.color = '#1a73e8';
+    }
+
+    function downloadCSV() {
+        let csv = [];
+        const rows = document.querySelectorAll("tr");
+        
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) 
+                row.push(cols[j].innerText);
+            csv.push(row.join(","));        
+        }
+
+        const csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
+        const downloadLink = document.createElement("a");
+        downloadLink.download = "nexora_sheet.csv";
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+    }
+
+    // Run
+    init();
+
+</script>
 </body>
 </html>
