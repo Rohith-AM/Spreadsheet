@@ -1,6 +1,6 @@
 /**
  * Nexora Spreadsheet Core Engine
- * Version: 2.0 (Stable)
+ * Version: 2.1 (Fixed)
  * Description: Handles state management, formula parsing, and data reactivity.
  */
 
@@ -57,8 +57,7 @@ const Core = {
         // 3. Save to state
         this.state[cellId] = cell;
 
-        // 4. Trigger Updates (In a full app, we would notify the UI here)
-        // For now, we return the computed value
+        // 4. Trigger Updates
         return cell.value;
     },
 
@@ -68,6 +67,9 @@ const Core = {
     updateStyle: function(cellId, styleKey, styleValue) {
         if (!this.state[cellId]) {
             this.state[cellId] = { value: "", formula: "", style: {} };
+        }
+        if (!this.state[cellId].style) {
+            this.state[cellId].style = {};
         }
         this.state[cellId].style[styleKey] = styleValue;
     },
@@ -95,7 +97,6 @@ const Core = {
             }
 
             // B. Handle Basic Math: A1 + B1
-            // We use Regex to find cell IDs (like A1, Z99) and replace them with values
             const parsedExpression = expression.replace(/[A-Z]+[0-9]+/g, (match) => {
                 const cell = this.state[match];
                 const val = cell ? cell.value : 0;
@@ -103,7 +104,6 @@ const Core = {
             });
 
             // Safe Evaluation (Basic Math)
-            // Note: In production, we'd use a parser library, but 'eval' works for this logic demo
             return eval(parsedExpression); 
 
         } catch (error) {
@@ -112,20 +112,16 @@ const Core = {
         }
     },
 
-    // --- REPLACE THIS SECTION IN YOUR core.js ---
-
     evaluateRangeFunction: function(expr) {
         // Updated Regex to capture Function Name and Arguments
-        // Supports: SUM(A1:A5), MAX(A1, B1), POWER(A1, 2)
         const match = expr.match(/([A-Z0-9]+)\((.*)\)/);
         
         if (!match) return "#FORMULA_ERR";
 
-        const funcName = match[1];     // e.g. "SUM" or "POWER"
+        const funcName = match[1];     // e.g. "SUM"
         const innerContent = match[2]; // e.g. "A1:A5" or "A1, 2"
 
         // 1. Parse Arguments
-        // We need to split by comma, but handle ranges like A1:A5
         const rawArgs = innerContent.split(",");
         const computedArgs = [];
 
@@ -147,12 +143,13 @@ const Core = {
         });
 
         // 2. Execute using the new Library
-        if (FormulaLib && FormulaLib.registry[funcName]) {
-            return FormulaLib.execute(funcName, computedArgs);
+        if (window.FormulaLib && window.FormulaLib.registry[funcName]) {
+            return window.FormulaLib.execute(funcName, computedArgs);
         }
 
         return "#UNKNOWN_FUNC";
-    }
+    }, // <--- THIS COMMA WAS MISSING!
+
     // -------------------------------------------------------------------------
     // 5. HELPER UTILITIES
     // -------------------------------------------------------------------------
@@ -161,10 +158,12 @@ const Core = {
      * Converts "A1" -> { col: 0, row: 0 }
      */
     parseCoordinates: function(cellId) {
-        const colLetter = cellId.match(/[A-Z]+/)[0];
-        const rowNum = parseInt(cellId.match(/[0-9]+/)[0]);
+        const match = cellId.match(/[A-Z]+|[0-9]+/g);
+        if (!match || match.length < 2) return { col: 0, row: 0 };
+
+        const colLetter = match[0];
+        const rowNum = parseInt(match[1]);
         
-        // Convert "A" to 0, "B" to 1...
         let colIndex = 0;
         for (let i = 0; i < colLetter.length; i++) {
             colIndex = colIndex * 26 + (colLetter.charCodeAt(i) - 64);
@@ -181,9 +180,14 @@ const Core = {
         const end = this.parseCoordinates(endId);
         const values = [];
 
-        for (let r = start.row; r <= end.row; r++) {
-            for (let c = start.col; c <= end.col; c++) {
-                // Convert back to ID: 0 -> A, 1 -> B
+        // Ensure loops work even if user selects backwards (A5:A1)
+        const minRow = Math.min(start.row, end.row);
+        const maxRow = Math.max(start.row, end.row);
+        const minCol = Math.min(start.col, end.col);
+        const maxCol = Math.max(start.col, end.col);
+
+        for (let r = minRow; r <= maxRow; r++) {
+            for (let c = minCol; c <= maxCol; c++) {
                 const colLetter = String.fromCharCode(65 + c);
                 const cellId = `${colLetter}${r + 1}`;
                 
